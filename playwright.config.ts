@@ -2,10 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  // Generated tests are per-run artifacts and are executed by path from the
-  // harness. Keeping them out of the default suite stops one stale generated
-  // file from turning the whole project red.
-  testIgnore: '**/generated/**',
+  // Generated tests are per-run artifacts: excluded from the default suite so a
+  // stale one cannot turn the project red, but the harness sets
+  // REPLAYER_RUN_GENERATED when it executes one by path.
+  testIgnore: process.env.REPLAYER_RUN_GENERATED ? [] : '**/generated/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

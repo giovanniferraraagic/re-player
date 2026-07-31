@@ -27,6 +27,9 @@ def report_path_for(config: WorkflowConfig) -> Path:
 def failure_messages(report: dict) -> list[str]:
     """Pull human-readable failure reasons out of a Playwright JSON report."""
     messages: list[str] = []
+    harness_error = report.get("harness_error")
+    if harness_error:
+        messages.append(str(harness_error))
     for suite in report.get("suites", []):
         for spec in suite.get("specs", []):
             for test in spec.get("tests", []):
@@ -53,6 +56,8 @@ def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
     env["REPLAYER_TARGET_URL"] = state.url
     # Tell Playwright exactly where to write, then read back that same path.
     env["REPLAYER_JSON_REPORT"] = str(report_path.resolve())
+    # Generated tests are excluded from the default suite; opt back in here.
+    env["REPLAYER_RUN_GENERATED"] = "1"
 
     completed = subprocess.run(
         [_npx(), "playwright", "test", state.test_path],
@@ -73,4 +78,16 @@ def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
         and stats.get("unexpected", 1) == 0
         and stats.get("expected", 0) > 0
     )
+    if not state.test_passed and not state.test_report:
+        # No report at all means Playwright never ran the file. Surface that
+        # instead of reporting an "unknown reason", which sent an earlier
+        # investigation chasing model quality when the cause was configuration.
+        state.test_report = {
+            "stats": {},
+            "harness_error": (
+                f"playwright exited {completed.returncode} without writing a "
+                f"report. stdout: {completed.stdout[-800:]} "
+                f"stderr: {completed.stderr[-800:]}"
+            ),
+        }
     return bool(state.test_passed)
