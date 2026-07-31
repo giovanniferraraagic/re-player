@@ -29,7 +29,8 @@ Canonical spec format: **Azure DevOps-style step tables** (`Test Step | Step Act
 
 ## Working rules
 
-- **Verify before asserting.** Claims about external tools need a fetched URL. Star counts, version numbers and feature claims are checked, never estimated.
+- **English only.** Every artifact in this repository — docs, code, comments, commit messages, spec files, agent output — is written in English, regardless of the language the request came in.
+- **`docs/research/` holds verified material only.** Every claim must trace to a fetched source. Star counts, version numbers and feature claims are checked, never estimated. Anything that cannot be verified is **deleted**, not committed with a caveat; open leads may be listed as leads, never as findings.
 - **Challenge cheap model output.** Research delegated to small models has produced fabricated citations and star counts wrong by an order of magnitude in this repo. A verification pass is mandatory, not optional.
 - **Conventional commits.** Branch for changes; ask before pushing or opening a PR.
 

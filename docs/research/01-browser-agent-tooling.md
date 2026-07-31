@@ -1,4 +1,4 @@
-> **Reviewer note (orchestrator, 2026-07-31):** this file is the strongest of the four sub-agent outputs — star counts were pulled from the GitHub API rather than estimated. One caveat: the footnote below the comparison table claims the `playwright-mcp` and `chrome-devtools-mcp` star counts are "inflated ... because they redirect/share telemetry metrics with their parent organizations". That explanation is not a real GitHub behaviour and is almost certainly a rationalisation of an anomalous reading. Treat those two figures (marked `*`) as UNVERIFIED; all others are API-sourced.
+> **Verification status (orchestrator, 2026-07-31):** star counts are GitHub API values, not estimates. The two figures originally marked `*` were independently re-checked against `api.github.com`: `microsoft/playwright-mcp` = 35,685 and `ChromeDevTools/chrome-devtools-mcp` = 48,265. The numbers were correct; the sub-agent's footnote explaining them as "inflated by shared telemetry with parent organizations" was a fabricated rationalisation and has been removed.
 >
 > **Most relevant finding for this project:** the authoring/execution split, and Stagehand's action caching — LLM cost is paid only when authoring or when a locator actually breaks. That is the cost-control pattern our harness needs.
 # Browser automation tooling for LLM agents
@@ -24,8 +24,8 @@
 
 | Tool | URL | Type | Stars | Perception Mode | Emits Reusable Playwright Code? | Deterministic Replay? | License |
 | :--- | :--- | :--- | :---: | :--- | :---: | :---: | :---: |
-| **Playwright MCP** | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | MCP Server | 35,681* | Accessibility Tree (Text) | No (Runtime actions) | No | Apache-2.0 |
-| **Chrome DevTools MCP** | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) | MCP Server | 48,262* | DOM, Console, Network, Vision | No (Runtime actions) | No | Apache-2.0 |
+| **Playwright MCP** | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | MCP Server | 35,685 | Accessibility Tree (Text) | No (Runtime actions) | No | Apache-2.0 |
+| **Chrome DevTools MCP** | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) | MCP Server | 48,265 | DOM, Console, Network, Vision | No (Runtime actions) | No | Apache-2.0 |
 | **browser-use** | [browser-use/browser-use](https://github.com/browser-use/browser-use) | Python Library & SaaS | 107,397 | Simplified DOM & Screenshots | No (Dynamic loop) | No | MIT |
 | **Stagehand** | [browserbase/stagehand](https://github.com/browserbase/stagehand) | TS Framework | 23,689 | Simplified DOM & Screenshots | No (But script is inline TS) | **Yes** (Action Caching) | MIT |
 | **Browserbase** | [browserbase.com](https://www.browserbase.com) | Hosted SaaS Infrastructure | N/A | N/A (Infrastructure layer) | No | **Yes** (If driver is cached) | Proprietary |
@@ -38,7 +38,7 @@
 | **Puppeteer** | [puppeteer/puppeteer](https://github.com/puppeteer/puppeteer) | Library (Baseline) | ~88k | Raw DOM / Selectors | No | **Yes** (No AI) | Apache-2.0 |
 | **Selenium** | [SeleniumHQ/selenium](https://github.com/SeleniumHQ/selenium) | Library (Baseline) | ~31k | Raw DOM / Selectors | No | **Yes** (No AI) | Apache-2.0 |
 
-*\*Note: GitHub stargazers counts for microsoft/playwright-mcp and ChromeDevTools/chrome-devtools-mcp are inflated in the API response because they redirect/share telemetry metrics with their parent organizations or related main repositories. They represent active, highly backed corporate tools.*
+*Star counts re-verified against the GitHub API on 2026-07-31.*
 
 ---
 

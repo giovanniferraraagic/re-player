@@ -1,7 +1,7 @@
-# ⚠️ CRITICAL FINDING — Playwright Test Agents already exist
+# Playwright Test Agents — verified primary-source findings
 
 **Verified by the orchestrator directly against primary sources on 2026-07-31.**
-This finding CONTRADICTS the sub-agent research in `01-prior-art-ai-e2e-agents.md`, which twice claimed no such feature exists. The sub-agent was wrong. Trust this file.
+A sub-agent claimed twice that this feature does not exist. It does. That sub-agent's output was removed from this repository as unverified; this file records what the official documentation actually says.
 
 ---
 
@@ -37,11 +37,11 @@ npx playwright init-agents --loop=opencode
 
 | Our goal (from `GOAL.md`) | Playwright Test Agents |
 |---|---|
-| Esplorare autonomamente il sito col browser | **planner** — "explores the app" |
-| Test plan / spec leggibile come interfaccia di supervisione | **planner** — "produces a Markdown test plan", saved to `specs/*.md`, "human-readable but precise enough for test generation" |
-| Generare test Playwright dalla spec | **generator** — "transforms the Markdown plan into the Playwright Test files" |
-| Manutenere automaticamente i test quando il sito cambia | **healer** — "executes the test suite and automatically repairs failing tests" |
-| Distinguere regressione da cambiamento intenzionale | **healer** — partially; see below |
+| Autonomously explore the site with a browser | **planner** — "explores the app" |
+| Readable test plan / spec as the supervision interface | **planner** — "produces a Markdown test plan", saved to `specs/*.md`, "human-readable but precise enough for test generation" |
+| Generate Playwright tests from the spec | **generator** — "transforms the Markdown plan into the Playwright Test files" |
+| Automatically maintain tests when the site changes | **healer** — "executes the test suite and automatically repairs failing tests" |
+| Distinguish a regression from an intentional change | **healer** — partially; see below |
 
 ### The healer, verbatim
 
@@ -54,7 +54,7 @@ npx playwright init-agents --loop=opencode
 > **Output**
 > - A passing test, **or a skipped test if the healer believes that functionality is broken.**
 
-That last line is the important one. Playwright's healer **already attempts the regression-vs-intentional-change distinction**: if it concludes the functionality is genuinely broken, it skips the test rather than healing it into a green lie. This is precisely the safety property we identified as the crux of the project (see `04-self-healing-and-regression-detection.md`).
+That last line is the important one. Playwright's healer **already attempts the regression-vs-intentional-change distinction**: if it concludes the functionality is genuinely broken, it skips the test rather than healing it into a green lie. This is precisely the safety property we identified as the crux of the project (see `03-self-healing-and-regression-detection.md`).
 
 ---
 
@@ -78,8 +78,8 @@ The spec format is **Markdown with numbered steps and bulleted expected outcomes
    - Deciding *what* is worth testing at a product/coverage level, and tracking coverage over time (KPI).
    - Orchestration across runs and over time: scheduling, triage of failures, trend reporting.
    - The supervision workflow: approving/versioning the test plan, audit trail of what the healer changed and why.
-   - Export/mapping of specs to external test management (Azure DevOps) — see `03-test-spec-formats.md`.
-   - Guardrail policy on what the healer may and may not touch — see `04-self-healing-and-regression-detection.md`.
+   - Export/mapping of specs to external test management (Azure DevOps) — see `02-test-spec-formats.md`.
+   - Guardrail policy on what the healer may and may not touch — see `03-self-healing-and-regression-detection.md`.
 3. **Anything we build should start by adopting `init-agents` and measuring where it falls short**, rather than reimplementing planner/generator/healer.
 
 ---

@@ -138,7 +138,7 @@ Main risk:
 - Complex branching, reusable flows, and setup semantics can get clumsy in tables. Mitigate with shared steps and shared parameters.
 
 ## Note for this project
-Playwright's own `planner` agent emits a **Markdown test plan** with numbered steps and bulleted expected outcomes (see `00-CRITICAL-playwright-test-agents.md`). That shape is close to, but not identical with, the ADO step table. A deterministic converter between the two is a concrete, small piece of work — and one of the gaps a custom harness can own.
+Playwright's own `planner` agent emits a **Markdown test plan** with numbered steps and bulleted expected outcomes (see `00-playwright-test-agents.md`). That shape is close to, but not identical with, the ADO step table. A deterministic converter between the two is a concrete, small piece of work — and one of the gaps a custom harness can own.
 
 ## Unverified / Needs follow-up
 - Exact serialized `Microsoft.VSTS.TCM.Steps` field format (raw HTML/XML payload) from Microsoft's public docs: not verified.

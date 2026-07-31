@@ -9,7 +9,7 @@
 - **Strict boundary — Locators vs Assertions:** Every major tool (Testim, mabl, Katalon, Healenium, Functionize, Testsigma) limits autonomous self-healing exclusively to **locators/selectors** (e.g. handling `NoSuchElementException`). **No tool automatically heals failed assertions** (expected text, status codes, business logic calculations) because doing so risks silently converting real application bugs into passing tests.
 - **Two dominant approval workflows exist:**
   1. *Silent runtime healing with async log/review queues* (e.g. mabl, Testim, Healenium): Tests pass at runtime using fallback locators, and proposed updates are queued for human approval later.
-  2. *Proposal/PR-driven human-in-the-loop* (e.g. Katalon, Playwright visual snapshots, Octomind, Meticulous): The test suite fails or flags changes, generating a proposed code patch/PR that a human engineer must approve.
+  2. *Proposal/PR-driven human-in-the-loop* (e.g. Katalon, Playwright visual snapshots, Meticulous): The test suite fails or flags changes, generating a proposed code patch/PR that a human engineer must approve.
 - **The "Zombie Test" hazard is well-documented:** In academic research on automated program/test repair, unconstrained self-repair is proven to produce "plausible patches"—fixes that pass tests by weakening checks while failing to preserve true program correctness.
 - **Intent requires multi-modal signals:** Distinguishing intentional changes from bugs requires looking beyond DOM snapshots: analyzing application git commits/PR descriptions, evaluating multi-test blast radius (whether 1 test or 50 tests broke), comparing visual baselines, and maintaining a strict risk-tiered policy.
 - **Bottom line for our agent:** Autonomous test maintenance is safe for **locator resilience** (finding moved elements), but **assertion updates and flow modifications MUST NEVER be applied silently**. They must be framed as patch proposals requiring human review or git/PR context verification.
@@ -30,7 +30,6 @@ The table below summarizes how major test automation platforms and open-source p
 | **Functionize** | `https://www.functionize.com` | Yes | No | Optional | ML engine tracks visual, DOM, and structural fingerprints. Adapts locators during execution when element signatures match. | No (Commercial) |
 | **Testsigma** | `https://github.com/testsigmahq/testsigma` | Yes | No | Configurable | AI-driven "Healer Agent" matches broken locators against historical locator attributes (`testsigma.com/blog/self-healing-test-automation/`). | Yes (Apache 2.0 / Open Core) |
 | **Applitools** | `https://applitools.com/platform/eyes/` | Visual only | No | Yes | Visual AI (Eyes) compares layout/visual baselines. Ignores minor rendering shifts while flagging layout/content diffs for human approval. | No (Commercial) |
-| **Octomind** | `https://octomind.dev` (Host unverified) | Yes | No | Yes (PR approval) | Uses Playwright under the hood; LLM agents analyze trace files to suggest code fixes via Pull Requests. | No (Commercial) |
 | **Meticulous.ai** | `https://www.meticulous.ai` | Yes | No | Yes (PR approval) | Uses deterministic session replay and network mocking instead of brittle DOM locators; flags visual and DOM diffs in PR checks for approval. | No (Commercial) |
 | **Momentic** | `https://momentic.ai/` | Yes | No | Yes | Multi-modal LLM browser automation agent updates Playwright test steps when UI changes occur, requiring user review. | No (Commercial) |
 
@@ -82,7 +81,7 @@ To solve the core safety problem, an AI agent must combine multiple distinct sig
    - *Mechanism:* Reading git commit messages, PR titles/descriptions, or deployment changelogs corresponding to the build under test (e.g., "PR #302: Redesign checkout flow step 2").
    - *Pros:* Direct signal of developer intent! Gives the AI agent semantic awareness of what changes were intentionally introduced by developers.
    - *Cons:* Only available when the testing agent has access to internal application source code repositories; unusable for third-party or black-box web testing.
-   - *Citation:* Meticulous.ai (`https://www.meticulous.ai`) and Octomind integrate directly into GitHub pull requests to contextualize UI changes.
+   - *Citation:* Meticulous.ai (`https://www.meticulous.ai`) integrates directly into GitHub pull requests to contextualize UI changes.
 
 4. **Visual Regression & Layout Baselines**
    - *Mechanism:* Comparing pixel and layout structures using Computer Vision / AI snapshot baselines (e.g., Applitools Eyes, Playwright `toHaveScreenshot()`).
@@ -183,7 +182,7 @@ A strict verification pass was conducted on all cited sources:
 
 2. **Citation 2 (Octomind blog post):**
    - *Checked:* Attempted to fetch `octomind.dev` directly. The host was unreachable (`WebFetchBlockedUrlError: No such host is known`).
-   - *Correction:* Downgraded claims regarding Octomind blog post title `"Why auto-healing tests don't work as advertised"` to unverified and moved to `## Unverified / Needs follow-up`. Kept technical architecture claims regarding Octomind's PR-based Playwright maintenance model.
+   - *Correction:* All Octomind claims were **removed** from this document, including the comparison-table row. Nothing about the product could be traced to a fetched page.
 
 3. **Citation 3 (Healenium `disable_healing` documentation):**
    - *Checked:* Fetched `https://healenium.io/docs/disable_healing` directly.
@@ -197,9 +196,11 @@ A strict verification pass was conducted on all cited sources:
 
 ## Unverified / Needs follow-up
 
-- **Octomind Blog Post Title:** `octomind.dev` host was unreachable during web fetches. Specific blog post title could not be confirmed against live page content.
-- **Katalon Deep Documentation URLs:** Deep URL paths on `docs.katalon.com` returned 404 status codes during web fetches; claims are based on Katalon product feature overviews.
-- **Functionize & mabl Deep Blog Paths:** Specific blog article paths returned 404 or redirect errors; claims reflect general platform documentation and homepage feature specifications.
+Per repository policy, unverifiable claims are removed rather than kept with a caveat. This section lists only open leads, not assertions.
+
+- **Octomind:** all Octomind claims were **removed** from this document. The host `octomind.dev` was unreachable during every fetch attempt on 2026-07-31, so nothing about the product could be traced to a fetched page. Re-investigate if the host becomes reachable.
+- **Katalon:** deep documentation paths on `docs.katalon.com` returned 404. Claims retained in this file come from Katalon product feature overview pages and are labelled as vendor claims, not verified mechanism descriptions.
+- **Functionize & mabl:** specific blog article paths returned 404 or redirects. Retained claims come from platform documentation and homepage feature descriptions, labelled as vendor claims.
 
 ---
 
