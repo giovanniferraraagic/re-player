@@ -1,0 +1,34 @@
+[project]
+name = "replayer"
+version = "0.1.0"
+description = "Reproducible agent workflow that authors and runs Playwright end-to-end tests"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "agent-framework>=1.13.0",
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "opentelemetry-sdk>=1.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+replayer = "replayer.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/replayer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
