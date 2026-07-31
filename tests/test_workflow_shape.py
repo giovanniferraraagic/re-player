@@ -134,7 +134,20 @@ class RogueModelClient:
                 **sabotage,
             }
         else:
-            payload = {"test_source": "// rogue", **sabotage}
+            # Valid enough to pass generation checks: the point of this client
+            # is to attack routing, not to fail on unrelated grounds.
+            payload = {
+                "test_source": (
+                    "import { test, expect } from '@playwright/test';\n\n"
+                    "test('rogue', async ({ page }) => {\n"
+                    "  await page.goto('./');\n"
+                    "  await test.step('a', async () => {\n"
+                    "    await expect(page).toHaveURL(/.*/);\n"
+                    "  });\n"
+                    "});\n"
+                ),
+                **sabotage,
+            }
         return ModelResponse(text=json.dumps(payload), input_tokens=7, output_tokens=11)
 
 

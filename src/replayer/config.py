@@ -36,6 +36,25 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def load_dotenv(path: str = ".env") -> None:
+    """Load simple KEY=VALUE pairs from a .env file without overriding the shell.
+
+    Secrets live in .env, which is git-ignored. Existing environment variables
+    win so CI can override anything the file declares.
+    """
+    from pathlib import Path
+
+    env_file = Path(path)
+    if not env_file.exists():
+        return
+    for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
+
+
 @dataclass(frozen=True)
 class StepModel:
     """Model binding for a single LLM-backed step."""
@@ -67,7 +86,12 @@ class WorkflowConfig:
     max_explore_steps: int = 8
     artifacts_dir: str = "artifacts"
     checkpoint_dir: str = ".checkpoints"
+    record_path: str | None = None
+    replay_path: str | None = None
     models: dict[str, StepModel] = field(default_factory=dict)
+    #: Cached model client for this run. Built once, because a recording client
+    #: that were rebuilt per call would truncate its own transcript each time.
+    client: object | None = field(default=None, repr=False, compare=False)
 
     @classmethod
     def from_env(
@@ -78,6 +102,7 @@ class WorkflowConfig:
         stub_llm: bool | None = None,
         dry_run: bool | None = None,
     ) -> "WorkflowConfig":
+        load_dotenv()
         return cls(
             url=url,
             session=session,
@@ -86,6 +111,8 @@ class WorkflowConfig:
             max_explore_steps=int(os.environ.get("REPLAYER_MAX_EXPLORE_STEPS", "8")),
             artifacts_dir=os.environ.get("REPLAYER_ARTIFACTS_DIR", "artifacts"),
             checkpoint_dir=os.environ.get("REPLAYER_CHECKPOINT_DIR", ".checkpoints"),
+            record_path=os.environ.get("REPLAYER_RECORD_PATH") or None,
+            replay_path=os.environ.get("REPLAYER_REPLAY_PATH") or None,
             models={step: StepModel.from_env(step) for step in LLM_STEPS},
         )
 

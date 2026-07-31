@@ -2,7 +2,7 @@
 
 > Goal: prove that an explicit, reproducible workflow can drive small models to author a working Playwright test from nothing but a URL.
 > Date: 2026-07-31
-> Status: Draft
+> Status: Complete (2026-07-31)
 
 ---
 
@@ -226,3 +226,35 @@ External assumptions were checked before implementation began:
 **Discovery that improves the design:** `playwright-cli` echoes the exact Playwright code it executed for every action, for example `page.getByRole('textbox', { name: 'What needs to be done?' }).fill('Buy groceries')`. The ref-to-locator mapping is therefore produced by the tool itself rather than inferred by us, which makes the locator catalog verified by construction. Task 3 was updated accordingly.
 
 **Risk noted:** `@playwright/cli` is at version 0.1.17 — very early. Playwright MCP remains the documented fallback.
+
+## Implementation log (2026-07-31)
+
+All nine tasks pass. Suite: 47 pytest tests, `npx tsc --noEmit` clean, `npx playwright test` green, no leaked browser sessions. Verified with Azure OpenAI `gpt-5.4-mini` against the live TodoMVC app.
+
+Representative run cost: `bootstrap` 0, `explore` 2269, `catalog` 0, `plan` 450, `generate` 997, `run` 0, `report` 0 tokens.
+
+### What adversarial review changed
+
+A second model reviewed tasks 1–4 and was right on every count worth acting on:
+
+- **The executor-sequence test was theatre.** It asserted order from a fully deterministic stub, so a model-routed graph would have passed too. Order is now proven by inspecting graph topology without running anything, and by a rogue client that emits `skip`/`goto`/`terminate` directives while the sequence stays fixed.
+- **The "zero model spans" assertion was vacuous** because models were globally disabled. All model calls now route through one choke point that records the calling step and raises if a code-only step attempts a call.
+- **The catalog was unsound.** Playwright matches accessible names case-insensitively as substrings; our verification compared whole strings. Confirmed on the target: `getByRole('link', { name: 'TodoMVC' })` selects two elements on TodoMVC. Locators now emit `exact: true`, and Playwright itself verifies every entry.
+
+### Flakiness found and fixed
+
+The end-to-end result was initially unreliable: the generated test type-checked, used only catalog locators, and still failed on some runs. Two causes:
+
+1. **The catalog had no notion of availability.** Elements such as the Toggle Todo checkbox and the All/Active/Completed filters exist only after a todo is created, and the generator asserted them on an empty page. Entries now carry `available_at_start` and are presented to the model in two groups.
+2. **Retries regenerated from scratch** instead of repairing. The previous source is now fed back for repair, and the attempt limit matches this spec's convergence bound of 5.
+
+The generator also verifies its own output by executing it, mirroring what Playwright's own generator agent does. That retry lives *inside* the `generate` executor deliberately: an edge from `run` back to `generate` would introduce a branch, and the absence of branches is what makes step order impossible for a model to influence.
+
+### Deviations from the spec as written
+
+- Python tests live in `tests/`, generated Playwright tests in `e2e/`. The spec asked for both under `tests/`, which collides with `pytest tests/test_driver.py`.
+- Reproducibility is demonstrated by recording and replaying model responses rather than by resuming from a MAF checkpoint id. Checkpoint storage is configured and written; artifact-level determinism is what the check proves.
+
+### Known limitation
+
+Success depends on a stochastic model. Two consecutive full-suite runs passed after the fixes above, which is evidence of repeatability but not proof of it. A larger sample, or a stricter model for `generate`, is the obvious next measurement.

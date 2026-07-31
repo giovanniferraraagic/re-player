@@ -169,6 +169,8 @@ def verify_candidates(
         if not any(count == 1 for count in counts):
             continue
         entry.match_count = 1
+        # The first snapshot is the page as a test would find it on load.
+        entry.available_at_start = counts[0] == 1
         verified.append(entry)
     return verified
 
@@ -203,6 +205,7 @@ def build_catalog(state: RunState, config: WorkflowConfig) -> list[LocatorEntry]
                     "role": entry.role,
                     "name": entry.name,
                     "match_count": entry.match_count,
+                    "available_at_start": entry.available_at_start,
                 }
                 for entry in verified
             ],

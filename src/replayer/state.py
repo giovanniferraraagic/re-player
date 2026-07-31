@@ -44,6 +44,9 @@ class LocatorEntry:
     name: str | None
     ref: str | None = None
     match_count: int = 0
+    #: True when the element exists on the page as first loaded. Elements that
+    #: only appear after an interaction must not be asserted before it.
+    available_at_start: bool = False
 
 
 @dataclass
@@ -65,6 +68,18 @@ class FlowCandidate:
 
 
 @dataclass
+class ExploreAction:
+    """One interaction the explorer chose, and whether it was legitimate."""
+
+    kind: str
+    ref: str | None
+    text: str | None = None
+    ref_was_in_snapshot: bool = False
+    executed: bool = False
+    rejection: str | None = None
+
+
+@dataclass
 class RunState:
     """The message passed along the workflow chain."""
 
@@ -74,6 +89,8 @@ class RunState:
     snapshots: list[list[SnapshotNode]] = field(default_factory=list)
     observed_code: list[str] = field(default_factory=list)
     flows: list[FlowCandidate] = field(default_factory=list)
+    explore_actions: list[ExploreAction] = field(default_factory=list)
+    explore_turns: int = 0
     catalog: list[LocatorEntry] = field(default_factory=list)
 
     spec_title: str = ""
@@ -98,11 +115,26 @@ class RunState:
         input_tokens: int = 0,
         output_tokens: int = 0,
     ) -> None:
+        """Accumulate usage for a step.
+
+        Steps may call a model several times - exploration does - so usage adds
+        up rather than overwriting, otherwise cost attribution would understate
+        the expensive steps.
+        """
+        existing = self.usage.get(step)
+        if existing is None:
+            self.usage[step] = StepUsage(
+                step=step,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+            return
         self.usage[step] = StepUsage(
             step=step,
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            model=model or existing.model,
+            input_tokens=existing.input_tokens + input_tokens,
+            output_tokens=existing.output_tokens + output_tokens,
         )
 
     def tokens_for(self, step: str) -> int:

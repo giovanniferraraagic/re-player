@@ -28,6 +28,7 @@ playwright/.cache/
 
 # Harness run artifacts
 artifacts/
+e2e/generated/
 
 # Environment & secrets
 .env

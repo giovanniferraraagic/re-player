@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // Generated tests are per-run artifacts and are executed by path from the
+  // harness. Keeping them out of the default suite stops one stale generated
+  // file from turning the whole project red.
+  testIgnore: '**/generated/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

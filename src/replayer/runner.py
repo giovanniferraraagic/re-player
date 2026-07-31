@@ -24,6 +24,21 @@ def report_path_for(config: WorkflowConfig) -> Path:
     return Path(config.artifacts_dir) / "playwright-report.json"
 
 
+def failure_messages(report: dict) -> list[str]:
+    """Pull human-readable failure reasons out of a Playwright JSON report."""
+    messages: list[str] = []
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") == "passed":
+                        continue
+                    error = result.get("error") or {}
+                    message = error.get("message") or result.get("status", "failed")
+                    messages.append(str(message).strip()[:800])
+    return messages
+
+
 def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
     """Run the generated test and record the outcome on the state."""
     if not state.test_path:
