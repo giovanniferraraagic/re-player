@@ -2,7 +2,7 @@
 
 > Goal: prove that an explicit, reproducible workflow can drive small models to author a working Playwright test from nothing but a URL.
 > Date: 2026-07-31
-> Status: Complete (2026-07-31)
+> Status: Implemented — 8 of 9 tasks verified; task 8 (end-to-end green) is intermittent, see Known limitation
 
 ---
 
@@ -255,6 +255,18 @@ The generator also verifies its own output by executing it, mirroring what Playw
 - Python tests live in `tests/`, generated Playwright tests in `e2e/`. The spec asked for both under `tests/`, which collides with `pytest tests/test_driver.py`.
 - Reproducibility is demonstrated by recording and replaying model responses rather than by resuming from a MAF checkpoint id. Checkpoint storage is configured and written; artifact-level determinism is what the check proves.
 
-### Known limitation
+### Known limitation — not converged
 
-Success depends on a stochastic model. Two consecutive full-suite runs passed after the fixes above, which is evidence of repeatability but not proof of it. A larger sample, or a stricter model for `generate`, is the obvious next measurement.
+**The end-to-end result is not yet reliable.** Across repeated full-suite runs the outcome alternated between green and a generator that exhausted its attempts. Observed sequence: pass, pass, fail, pass, fail, fail, pass — roughly half the runs succeed.
+
+Everything else is stable. The failure is always the same one: `generate` cannot produce a test that both respects the catalog and passes when executed, within the attempt budget. Three separate causes were found and fixed along the way (catalog availability, repair-instead-of-regenerate, and a `testIgnore` rule that stopped Playwright from running the generated file at all), and each fix improved matters without making the step deterministic.
+
+Per this spec's own convergence rule — stop at the iteration limit and report rather than keep spending — the work stops here with the criterion **not met**.
+
+What would most likely close it, in order of expected value:
+
+1. A stronger model for `generate` only. Per-step model binding already exists, so this is a configuration change and its cost is measurable against the same KPI.
+2. Feed the failing assertion's actual page state back into the repair prompt, not just the error text.
+3. Constrain assertions the way locators are constrained: offer a verified vocabulary of assertions per catalog entry instead of letting the model compose them freely.
+
+Option 3 is the one that matches this project's thesis. Constraining locators is what made a small model competent at selection; assertions are still unconstrained, and that is exactly where it fails.
