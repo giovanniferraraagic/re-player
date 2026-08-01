@@ -32,6 +32,8 @@ Canonical spec format: **Azure DevOps-style step tables** (`Test Step | Step Act
 - **English only.** Every artifact in this repository — docs, code, comments, commit messages, spec files, agent output — is written in English, regardless of the language the request came in.
 - **`docs/research/` holds verified material only.** Every claim must trace to a fetched source. Star counts, version numbers and feature claims are checked, never estimated. Anything that cannot be verified is **deleted**, not committed with a caveat; open leads may be listed as leads, never as findings.
 - **Challenge cheap model output.** Research delegated to small models has produced fabricated citations and star counts wrong by an order of magnitude in this repo. A verification pass is mandatory, not optional.
+- **Measure before concluding.** Reliability claims come from `scripts/measure_reliability.py` over several runs, never from one observation. This repo once recorded "fails half the time" as a property of the product when the cause was self-inflicted test interference.
+- **`playwright-cli close-all` is global.** Never run it, or any other whole-machine browser command, while a workflow or measurement is in flight — it will kill that run and the failure will look like a product defect.
 - **Conventional commits.** Branch for changes; ask before pushing or opening a PR.
 
 ## Maintaining this file

@@ -1,0 +1,104 @@
+{
+  "runs": 8,
+  "passed": 4,
+  "success_rate": 0.5,
+  "mean_tokens_per_run": 2490,
+  "results": [
+    {
+      "run": 1,
+      "passed": false,
+      "seconds": 70.4,
+      "tokens": {},
+      "spec_title": null,
+      "error": "It was rejected because:\n- These locators are not in the catalog and must be replaced: page.getByText('1 item remaining')"
+    },
+    {
+      "run": 2,
+      "passed": true,
+      "seconds": 137.6,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2305,
+        "catalog": 0,
+        "plan": 438,
+        "generate": 5249,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add and complete a todo",
+      "error": null
+    },
+    {
+      "run": 3,
+      "passed": true,
+      "seconds": 93.9,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2450,
+        "catalog": 0,
+        "plan": 507,
+        "generate": 1133,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and complete a todo",
+      "error": null
+    },
+    {
+      "run": 4,
+      "passed": false,
+      "seconds": 156.0,
+      "tokens": {},
+      "spec_title": null,
+      "error": "It was rejected because:\n- The test was executed and failed: Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveClass\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('checkbox', { name: 'Toggle Todo', exact: true })\nExpected pattern: \u001b[32m/completed/\u001b[39m\nReceived string:  \u001b[31m\"toggle\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveClass\" with timeout 5000ms\u001b[22m\n\u001b[2"
+    },
+    {
+      "run": 5,
+      "passed": true,
+      "seconds": 60.9,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2301,
+        "catalog": 0,
+        "plan": 437,
+        "generate": 1084,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Complete a todo item",
+      "error": null
+    },
+    {
+      "run": 6,
+      "passed": false,
+      "seconds": 80.8,
+      "tokens": {},
+      "spec_title": null,
+      "error": "It was rejected because:\n- These locators are not in the catalog and must be replaced: page.getByText('0 items left', { exact: true }), page.getByText('1 item left', { exact: true }), page.getByText('Buy milk', { exact: true }), page.getByText('Buy oat milk', { exact: true })"
+    },
+    {
+      "run": 7,
+      "passed": true,
+      "seconds": 59.6,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2376,
+        "catalog": 0,
+        "plan": 470,
+        "generate": 1166,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and complete a todo",
+      "error": null
+    },
+    {
+      "run": 8,
+      "passed": false,
+      "seconds": 47.8,
+      "tokens": {},
+      "spec_title": null,
+      "error": "It was rejected because:\n- These locators are not in the catalog and must be replaced: page.getByText('Clear completed', { exact: true })"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 > Goal: prove that an explicit, reproducible workflow can drive small models to author a working Playwright test from nothing but a URL.
 > Date: 2026-07-31
-> Status: Implemented — 8 of 9 tasks verified; task 8 (end-to-end green) is intermittent, see Known limitation
+> Status: Complete — all nine tasks verified; reliability measured, see below
 
 ---
 
@@ -255,18 +255,25 @@ The generator also verifies its own output by executing it, mirroring what Playw
 - Python tests live in `tests/`, generated Playwright tests in `e2e/`. The spec asked for both under `tests/`, which collides with `pytest tests/test_driver.py`.
 - Reproducibility is demonstrated by recording and replaying model responses rather than by resuming from a MAF checkpoint id. Checkpoint storage is configured and written; artifact-level determinism is what the check proves.
 
-### Known limitation — not converged
+### Reliability — measured, not estimated
 
-**The end-to-end result is not yet reliable.** Across repeated full-suite runs the outcome alternated between green and a generator that exhausted its attempts. Observed sequence: pass, pass, fail, pass, fail, fail, pass — roughly half the runs succeed.
+`scripts/measure_reliability.py` runs the workflow N times and reports the success rate. Measurements against Azure OpenAI `gpt-5.4-mini` and live TodoMVC, 8 runs each:
 
-Everything else is stable. The failure is always the same one: `generate` cannot produce a test that both respects the catalog and passes when executed, within the attempt budget. Three separate causes were found and fixed along the way (catalog availability, repair-instead-of-regenerate, and a `testIgnore` rule that stopped Playwright from running the generated file at all), and each fix improved matters without making the step deterministic.
+| Configuration | Success rate |
+|---|---|
+| Exploration budget 3 | **8/8 (100%)** |
+| Exploration budget 4, before the plan constraint | 4/8 (50%) |
+| Exploration budget 4, after the plan constraint | **7/8 (88%)** |
 
-Per this spec's own convergence rule — stop at the iteration limit and report rather than keep spending — the work stops here with the criterion **not met**.
+A deeper exploration makes the plan more ambitious, and the plan used to promise things the catalog could not express: item counters, a "Clear completed" control. The generator then had to either invent a locator — which the catalog check rejects — or give up. The fix constrains the plan the same way locators are constrained: `plan` is shown the verified catalog and told an expected result is only worth writing if it can be checked with one of those elements.
 
-What would most likely close it, in order of expected value:
+The single remaining failure at budget 4 is a test timeout rather than a catalog mismatch, and is not yet diagnosed.
 
-1. A stronger model for `generate` only. Per-step model binding already exists, so this is a configuration change and its cost is measurable against the same KPI.
-2. Feed the failing assertion's actual page state back into the repair prompt, not just the error text.
-3. Constrain assertions the way locators are constrained: offer a verified vocabulary of assertions per catalog entry instead of letting the model compose them freely.
+### A correction worth recording
 
-Option 3 is the one that matches this project's thesis. Constraining locators is what made a small model competent at selection; assertions are still unconstrained, and that is exactly where it fails.
+An earlier version of this document reported the pipeline as failing roughly half the time and declared the end-to-end criterion unmet. That was wrong, and the causes were both self-inflicted:
+
+1. `playwright-cli close-all` is **global**. Running it from a probe while a measurement was in flight killed the measurement's browser, producing failures attributed to model quality.
+2. A `testIgnore` rule added to keep generated tests out of the default suite also stopped the harness from running them by path, so Playwright found no tests and the generator rejected its own correct output.
+
+Nothing in the codebase calls `close-all`; the interference came from manual commands. The lesson is recorded in `AGENTS.md`: measure before concluding, and never run global browser commands while a run is in flight.

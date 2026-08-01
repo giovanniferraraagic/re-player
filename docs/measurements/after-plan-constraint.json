@@ -1,0 +1,128 @@
+{
+  "runs": 8,
+  "passed": 7,
+  "success_rate": 0.875,
+  "mean_tokens_per_run": 4449,
+  "results": [
+    {
+      "run": 1,
+      "passed": true,
+      "seconds": 59.0,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2019,
+        "catalog": 0,
+        "plan": 577,
+        "generate": 952,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add a todo and mark it complete",
+      "error": null
+    },
+    {
+      "run": 2,
+      "passed": true,
+      "seconds": 61.3,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2366,
+        "catalog": 0,
+        "plan": 552,
+        "generate": 877,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and complete a todo",
+      "error": null
+    },
+    {
+      "run": 3,
+      "passed": false,
+      "seconds": 225.0,
+      "tokens": {},
+      "spec_title": null,
+      "error": "It was rejected because:\n- The test was executed and failed: \u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+    },
+    {
+      "run": 4,
+      "passed": true,
+      "seconds": 69.6,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2457,
+        "catalog": 0,
+        "plan": 649,
+        "generate": 3704,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add and manage a todo item",
+      "error": null
+    },
+    {
+      "run": 5,
+      "passed": true,
+      "seconds": 126.0,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2136,
+        "catalog": 0,
+        "plan": 676,
+        "generate": 3881,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and manage a todo item",
+      "error": null
+    },
+    {
+      "run": 6,
+      "passed": true,
+      "seconds": 73.9,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2375,
+        "catalog": 0,
+        "plan": 618,
+        "generate": 1171,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and manage a todo item",
+      "error": null
+    },
+    {
+      "run": 7,
+      "passed": true,
+      "seconds": 94.3,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2125,
+        "catalog": 0,
+        "plan": 720,
+        "generate": 3705,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add a todo and verify list state",
+      "error": null
+    },
+    {
+      "run": 8,
+      "passed": true,
+      "seconds": 64.2,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2377,
+        "catalog": 0,
+        "plan": 608,
+        "generate": 1048,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create, complete, and filter a todo",
+      "error": null
+    }
+  ]
+}

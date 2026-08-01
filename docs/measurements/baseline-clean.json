@@ -1,0 +1,136 @@
+{
+  "runs": 8,
+  "passed": 8,
+  "success_rate": 1.0,
+  "mean_tokens_per_run": 4908,
+  "results": [
+    {
+      "run": 1,
+      "passed": true,
+      "seconds": 94.2,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 2089,
+        "catalog": 0,
+        "plan": 514,
+        "generate": 892,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and complete a todo",
+      "error": null
+    },
+    {
+      "run": 2,
+      "passed": true,
+      "seconds": 76.5,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1637,
+        "catalog": 0,
+        "plan": 446,
+        "generate": 5839,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create a todo item",
+      "error": null
+    },
+    {
+      "run": 3,
+      "passed": true,
+      "seconds": 59.5,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1669,
+        "catalog": 0,
+        "plan": 475,
+        "generate": 2548,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add a todo and verify it appears in the list",
+      "error": null
+    },
+    {
+      "run": 4,
+      "passed": true,
+      "seconds": 59.6,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1693,
+        "catalog": 0,
+        "plan": 453,
+        "generate": 2836,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add a todo item",
+      "error": null
+    },
+    {
+      "run": 5,
+      "passed": true,
+      "seconds": 58.9,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1706,
+        "catalog": 0,
+        "plan": 439,
+        "generate": 1867,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add a todo item",
+      "error": null
+    },
+    {
+      "run": 6,
+      "passed": true,
+      "seconds": 58.2,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1722,
+        "catalog": 0,
+        "plan": 436,
+        "generate": 2265,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create a todo item",
+      "error": null
+    },
+    {
+      "run": 7,
+      "passed": true,
+      "seconds": 73.6,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1874,
+        "catalog": 0,
+        "plan": 475,
+        "generate": 2408,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Create and complete a todo",
+      "error": null
+    },
+    {
+      "run": 8,
+      "passed": true,
+      "seconds": 77.4,
+      "tokens": {
+        "bootstrap": 0,
+        "explore": 1579,
+        "catalog": 0,
+        "plan": 486,
+        "generate": 2913,
+        "run": 0,
+        "report": 0
+      },
+      "spec_title": "Add and complete a todo",
+      "error": null
+    }
+  ]
+}

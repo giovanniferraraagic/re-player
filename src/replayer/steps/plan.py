@@ -22,13 +22,16 @@ Journey: {flow}
 Known journey steps:
 {flow_steps}
 
-Elements available on the page:
+These are the ONLY elements that have been verified on this page. An expected
+result is worth writing only if it can be checked using one of them:
 {elements}
 
 Rules:
 - Between 2 and 6 steps.
 - Every step needs one concrete action and one observable expected result.
-- The expected result must be something a tester can see on screen.
+- The expected result must be checkable using the verified elements listed
+  above. Do not promise to verify counters, labels or messages that are not in
+  that list, however natural they seem.
 - State any precondition or test data inside the action text.
 - Do not mention code, selectors or automation.
 
@@ -38,14 +41,23 @@ Reply with a single JSON object:
 """
 
 
-def _render_elements(state: RunState, limit: int = 30) -> str:
-    if not state.snapshots:
-        return "(none captured)"
+def _render_elements(state: RunState) -> str:
+    """Describe the verified catalog in plain words.
+
+    The plan is written before any code exists, but it is the contract the
+    generator has to satisfy. Letting it promise something the catalog cannot
+    express was the single largest cause of generation failing outright: with a
+    wider exploration the plan started asking for item counters and a "Clear
+    completed" control that the role-based catalog has no locator for.
+    """
+    if not state.catalog:
+        return "(none verified)"
     lines = []
-    for node in state.snapshots[-1][:limit]:
-        if node.name:
-            lines.append(f'- {node.role} "{node.name}"')
-    return "\n".join(lines) or "(none named)"
+    for entry in state.catalog:
+        label = f'"{entry.name}"' if entry.name else "(unnamed)"
+        when = "on load" if entry.available_at_start else "after an interaction"
+        lines.append(f"- {entry.role} {label} — present {when}")
+    return "\n".join(lines)
 
 
 def parse_spec(text: str) -> tuple[str, str, list[SpecStep]]:
