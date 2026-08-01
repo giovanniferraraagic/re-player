@@ -23,6 +23,13 @@ blob-report/
 playwright/.cache/
 .last-run.json
 
+# playwright-cli session artifacts
+.playwright-cli/
+
+# Harness run artifacts
+artifacts/
+e2e/generated/
+
 # Environment & secrets
 .env
 .env.*
