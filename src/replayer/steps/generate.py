@@ -110,9 +110,13 @@ def _render_catalog(state: RunState) -> str:
     return "\n".join(lines)
 
 
-def write_test(state: RunState) -> Path:
-    """Persist the generated test next to the hand-written ones."""
-    directory = Path("e2e") / "generated"
+def write_test(state: RunState, config: WorkflowConfig) -> Path:
+    """Persist the generated test next to the hand-written ones.
+
+    The directory comes from configuration so that parallel and hermetic runs
+    can be isolated, the same way the catalog and the run report already are.
+    """
+    directory = Path(config.generated_tests_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{slugify(state.spec_title)}.spec.ts"
     path.write_text(state.test_source, encoding="utf-8")
@@ -127,13 +131,19 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
     wrong assertions: across repeated runs the generator sometimes produced a
     test that type-checked, used only catalog locators, and still failed. So the
     step verifies its own output by executing it, exactly as Playwright's own
-    generator agent does, and feeds any failure back for another attempt.
+    generator agent does, and feeds any *repairable* failure back for another
+    attempt.
+
+    Only locator failures are repairable. A failed assertion or a server error
+    escalates instead: retrying those pressures the model into an expectation
+    that accommodates the defect, which is how a real bug silently becomes a
+    green test.
 
     The retry lives *inside* this executor on purpose. Adding an edge from `run`
     back to `generate` would introduce a branch in the graph, and the absence of
     branches is what makes the step order impossible for a model to influence.
     """
-    from replayer.runner import failure_messages, run_playwright
+    from replayer.runner import classify_failures, run_playwright
 
     catalog_expressions = [entry.expression for entry in state.catalog]
     expected_steps = len(state.spec_steps)
@@ -158,14 +168,28 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
 
         if not problems:
             state.test_source = source
-            write_test(state)
+            write_test(state, config)
             if config.dry_run:
                 return
             if run_playwright(state, config):
                 return
+
+            failures = classify_failures(state.test_report)
+            blocking = [failure for failure in failures if not failure.repairable]
+            if blocking:
+                state.escalations = [
+                    f"{failure.kind}: {failure.message}" for failure in blocking
+                ]
+                state.generation_error = (
+                    "Generation stopped: the test failed for a reason that must "
+                    "not be repaired automatically. "
+                    + " ".join(failure.message for failure in blocking)
+                )
+                return
+
             problems = [
-                "The test was executed and failed: " + message
-                for message in failure_messages(state.test_report)
+                "The test was executed and failed: " + failure.message
+                for failure in failures
             ] or ["The test was executed and failed for an unknown reason."]
 
         feedback = (
@@ -179,11 +203,20 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
             + "\n"
         )
 
-    # Keep the last attempt so the failure is inspectable rather than invisible.
+    # Keep the last attempt so the failure is inspectable rather than invisible,
+    # and let the workflow finish: a run that produced no report is the one case
+    # where a report would have been most useful.
     state.test_source = source
     if source.strip():
-        write_test(state)
-    raise RuntimeError(
+        write_test(state, config)
+    # The artifact on disk is this last, unaccepted attempt, which may never have
+    # been executed - so state an explicit verdict rather than leaving `run` to
+    # either re-execute a known-bad test or report a result belonging to an
+    # earlier attempt's source. The stale report is dropped for the same reason:
+    # it describes a different file from the one `test_path` now points at.
+    state.test_passed = False
+    state.test_report = {}
+    state.generation_error = (
         "Generator could not produce a passing test that respects the catalog "
         f"after {MAX_ATTEMPTS} attempts: {feedback.strip()}"
     )

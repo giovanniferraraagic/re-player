@@ -4,12 +4,83 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from replayer.config import WorkflowConfig
 from replayer.state import RunState
+
+#: Failure classes. Only ``LOCATOR`` may be handed back to a model for repair.
+LOCATOR = "locator"
+ASSERTION = "assertion"
+HARNESS = "harness"
+UNKNOWN = "unknown"
+
+_ASSERTION_RE = re.compile(r"\bexpect(?:\.\w+)?\s*\(")
+_LOCATOR_MARKERS = (
+    "strict mode violation",
+    "waiting for locator",
+    "failed to resolve locator",
+)
+
+
+@dataclass(frozen=True)
+class TestFailure:
+    """One failure from a Playwright run, classified for the retry policy."""
+
+    message: str
+    kind: str
+
+    @property
+    def repairable(self) -> bool:
+        return self.kind == LOCATOR
+
+
+def classify_failure(message: str) -> str:
+    """Classify a Playwright failure message.
+
+    ``expect(...)`` is tested first and deliberately outranks the locator
+    markers. An assertion that timed out waiting for an element still encodes an
+    expected state, and repairing it is precisely how a real application defect
+    becomes a green test. Unrecognised messages escalate for the same reason:
+    of the two ways to be wrong here, only guessing "repairable" fails silently.
+    """
+    text = message.strip()
+    if not text:
+        return UNKNOWN
+    if _ASSERTION_RE.search(text):
+        return ASSERTION
+    lowered = text.lower()
+    if any(marker in lowered for marker in _LOCATOR_MARKERS):
+        return LOCATOR
+    return UNKNOWN
+
+
+def classify_failures(report: dict) -> list[TestFailure]:
+    """Every failure in a Playwright JSON report, with its class.
+
+    ``skipped`` is excluded alongside ``passed``: a test that never ran is not a
+    failure, and surfacing it as one would put noise in front of the human who
+    has to triage the escalations.
+    """
+    failures: list[TestFailure] = []
+    harness_error = report.get("harness_error")
+    if harness_error:
+        failures.append(TestFailure(str(harness_error), HARNESS))
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") in {"passed", "skipped"}:
+                        continue
+                    error = result.get("error") or {}
+                    message = error.get("message") or result.get("status", "failed")
+                    text = str(message).strip()[:800]
+                    failures.append(TestFailure(text, classify_failure(text)))
+    return failures
 
 
 def _npx() -> str:
@@ -26,20 +97,7 @@ def report_path_for(config: WorkflowConfig) -> Path:
 
 def failure_messages(report: dict) -> list[str]:
     """Pull human-readable failure reasons out of a Playwright JSON report."""
-    messages: list[str] = []
-    harness_error = report.get("harness_error")
-    if harness_error:
-        messages.append(str(harness_error))
-    for suite in report.get("suites", []):
-        for spec in suite.get("specs", []):
-            for test in spec.get("tests", []):
-                for result in test.get("results", []):
-                    if result.get("status") == "passed":
-                        continue
-                    error = result.get("error") or {}
-                    message = error.get("message") or result.get("status", "failed")
-                    messages.append(str(message).strip()[:800])
-    return messages
+    return [failure.message for failure in classify_failures(report)]
 
 
 def run_playwright(state: RunState, config: WorkflowConfig) -> bool:

@@ -7,6 +7,10 @@ Seven executors run in a fixed order:
 Four of them - bootstrap, catalog, run, report - are plain code and never touch
 a language model. The graph, not the model, decides the sequence: that is the
 property this project exists to demonstrate.
+
+`generate` verifies its own output by executing it, so `run` usually reports
+that result instead of executing a second time; it runs the test only when
+generation handed one over unexecuted.
 """
 
 from __future__ import annotations
@@ -86,10 +90,17 @@ def build_workflow(config: WorkflowConfig) -> Workflow:
     # ---------------------------------------------------------------- code step
     @executor(id="run")
     async def run(state: RunState, ctx: WorkflowContext[RunState]) -> None:
-        """Execute the generated test with Playwright. Pure code, no model."""
+        """Execute the generated test with Playwright. Pure code, no model.
+
+        The generator verifies its own output by executing it, so on the common
+        path the test has already run and this executor reports that result
+        rather than paying for a second full Playwright execution. It executes
+        only when generation handed over a test that was never run.
+        """
         from replayer.runner import run_playwright
 
-        if not config.dry_run:
+        already_executed = state.test_passed is not None
+        if not config.dry_run and state.test_path and not already_executed:
             run_playwright(state, config)
         state.record_usage("run")
         await ctx.send_message(state)
@@ -105,6 +116,8 @@ def build_workflow(config: WorkflowConfig) -> Workflow:
             "spec_path": state.spec_path,
             "test_path": state.test_path,
             "test_passed": state.test_passed,
+            "generation_error": state.generation_error,
+            "escalations": state.escalations,
             "catalog_size": len(state.catalog),
             "flows": [flow.title for flow in state.flows],
             "usage": {
@@ -161,6 +174,13 @@ def run_workflow(url: str, session: str = "replayer") -> int:
         tokens = usage.total_tokens if usage else 0
         model = (usage.model if usage else None) or "-"
         print(f"  {step:<10} tokens={tokens:<7} model={model}")
+
+    if state.escalations:
+        print("\nEscalated - these were NOT repaired automatically:")
+        for escalation in state.escalations:
+            print(f"  - {escalation}")
+    if state.generation_error:
+        print(f"\nGeneration did not succeed: {state.generation_error}")
 
     return 0 if state.test_passed else 1
 

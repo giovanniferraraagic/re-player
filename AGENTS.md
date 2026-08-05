@@ -13,7 +13,7 @@ Full goal and decision history: `GOAL.md`. Research evidence: `docs/research/REA
 1. **The deliverable is a harness, not a set of prompts.** Playwright v1.56 already ships `planner`/`generator`/`healer` agents — but they are markdown prompts + MCP tools with LLM-decided control flow. The gap we fill is **reproducible workflow steps**.
 2. **No new browser automation engine.** Playwright is the execution layer.
 3. **Cost is a design constraint.** Every step runs on the smallest model that can do it. Deterministic steps must be plain code with no LLM call.
-4. **Never auto-heal assertions.** Locator repair is allowed; changing an expected value silently converts a real bug into a green test. Failed assertions and server errors escalate — they do not get repaired.
+4. **Never auto-heal assertions.** Locator repair is allowed; changing an expected value silently converts a real bug into a green test. Failed assertions and server errors escalate — they do not get repaired. Enforced in `replayer.runner.classify_failure`: only `locator` failures are fed back to the model, and anything unrecognised escalates.
 5. **The agent does not fix application code.** It is a tester, not a developer.
 
 ## Architecture direction
