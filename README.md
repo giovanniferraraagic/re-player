@@ -19,8 +19,11 @@ Early. The current milestone is the walking skeleton specified in [`specs/walkin
 | `src/replayer/` | Python harness (Microsoft Agent Framework Workflows) |
 | `e2e/` | Playwright TypeScript tests — the placeholder and generated output |
 | `tests/` | pytest suite for the harness |
+| `scripts/` | Measurement tooling, e.g. `measure_reliability.py` |
 | `specs/` | Specifications driving implementation |
 | `docs/research/` | Verified prior-art research |
+| `docs/measurements/` | Raw reliability measurements backing the claims in the specs |
+| `docs/agents/` | How agent skills consume this repo (issue tracker, domain docs) |
 | `GOAL.md` | The goal and its decision history |
 | `AGENTS.md` | Operating rules for agents working in this repository |
 

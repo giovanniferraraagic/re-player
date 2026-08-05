@@ -36,6 +36,16 @@ Canonical spec format: **Azure DevOps-style step tables** (`Test Step | Step Act
 - **`playwright-cli close-all` is global.** Never run it, or any other whole-machine browser command, while a workflow or measurement is in flight — it will kill that run and the failure will look like a product defect.
 - **Conventional commits.** Branch for changes; ask before pushing or opening a PR.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `giovanniferraraagic/re-player`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
 ## Maintaining this file
 
 This file is maintained by the agents that work here. Update it in the same change that makes it stale — never as a follow-up task.
