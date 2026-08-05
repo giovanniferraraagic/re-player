@@ -111,6 +111,12 @@ def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
         report_path.unlink()
 
     env = dict(os.environ)
+    # The generated test is model-authored and exercises a page the harness does
+    # not control, so it is untrusted code. It has no legitimate need for the
+    # harness's model credentials, and anything it prints is captured into the
+    # run report - so strip them rather than hand them to the child process.
+    for key in [k for k in env if k.startswith(("AZURE_OPENAI", "OPENAI"))]:
+        env.pop(key, None)
     env["REPLAYER_TARGET_URL"] = state.url
     # Tell Playwright exactly where to write, then read back that same path.
     env["REPLAYER_JSON_REPORT"] = str(report_path.resolve())

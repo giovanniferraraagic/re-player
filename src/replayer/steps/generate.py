@@ -22,6 +22,13 @@ MAX_ATTEMPTS = 5
 
 _TEST_STEP = re.compile(r"\btest\.step\s*\(")
 _CODE_FENCE = re.compile(r"^```[a-zA-Z]*\n|\n```$")
+_IMPORT_RE = re.compile(r"""^\s*import\s+[^'"]*['"]([^'"]+)['"]""", re.MULTILINE)
+_REQUIRE_RE = re.compile(r"\brequire\s*\(")
+
+#: Modules the generated test is allowed to pull in. The emitted file is run by
+#: Node with the harness's environment, and page content reaches the prompt that
+#: produced it, so this list is a privilege boundary rather than a style rule.
+ALLOWED_MODULES = frozenset({"@playwright/test"})
 
 PROMPT_TEMPLATE = """Write a Playwright test in TypeScript for this specification.
 
@@ -78,6 +85,22 @@ def find_locator_violations(source: str, catalog_expressions: list[str]) -> list
 
 def count_test_steps(source: str) -> int:
     return len(_TEST_STEP.findall(source))
+
+
+def find_disallowed_imports(source: str) -> list[str]:
+    """Modules the generated test pulls in that it has no business pulling in.
+
+    The generated file is executed, so an unconstrained import is arbitrary code
+    execution on the machine running the harness. Because page-derived text
+    reaches the prompt, the model's reply is treated as untrusted input and
+    checked, not trusted because we asked for a test.
+    """
+    disallowed = [
+        module for module in _IMPORT_RE.findall(source) if module not in ALLOWED_MODULES
+    ]
+    if _REQUIRE_RE.search(source):
+        disallowed.append("require()")
+    return sorted(set(disallowed))
 
 
 def _render_steps(state: RunState) -> str:
@@ -230,6 +253,12 @@ def _static_problems(
         return ["The response contained no test source."]
 
     problems: list[str] = []
+    imports = find_disallowed_imports(source)
+    if imports:
+        problems.append(
+            "The test may only import from '@playwright/test'. Remove: "
+            + ", ".join(imports)
+        )
     violations = find_locator_violations(source, catalog_expressions)
     if violations:
         problems.append(
