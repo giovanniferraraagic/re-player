@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from replayer.models import ModelClient
 
 #: Executors that must never invoke a language model.
 CODE_ONLY_STEPS: tuple[str, ...] = ("bootstrap", "catalog", "run", "report")
@@ -27,6 +31,13 @@ EXECUTOR_SEQUENCE: tuple[str, ...] = (
 )
 
 DEFAULT_MODEL = "gpt-5-mini"
+
+#: Providers with a client wired in ``replayer.models``. Kept here so a bad
+#: provider is rejected while the configuration is being built, rather than
+#: several steps later on the first model call.
+SUPPORTED_PROVIDERS: tuple[str, ...] = ("azure",)
+
+DEFAULT_PROVIDER = "azure"
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -70,7 +81,7 @@ class StepModel:
             "REPLAYER_MODEL", DEFAULT_MODEL
         )
         provider = os.environ.get(f"REPLAYER_PROVIDER_{suffix}") or os.environ.get(
-            "REPLAYER_PROVIDER", "openai"
+            "REPLAYER_PROVIDER", DEFAULT_PROVIDER
         )
         return cls(step=step, model=model, provider=provider)
 
@@ -86,12 +97,15 @@ class WorkflowConfig:
     max_explore_steps: int = 8
     artifacts_dir: str = "artifacts"
     checkpoint_dir: str = ".checkpoints"
+    generated_tests_dir: str = "e2e/generated"
     record_path: str | None = None
     replay_path: str | None = None
     models: dict[str, StepModel] = field(default_factory=dict)
     #: Cached model client for this run. Built once, because a recording client
     #: that were rebuilt per call would truncate its own transcript each time.
-    client: object | None = field(default=None, repr=False, compare=False)
+    #: This is per-run state rather than configuration; it lives here because
+    #: the config object is what every step is handed.
+    client: "ModelClient | None" = field(default=None, repr=False, compare=False)
 
     @classmethod
     def from_env(
@@ -103,17 +117,44 @@ class WorkflowConfig:
         dry_run: bool | None = None,
     ) -> "WorkflowConfig":
         load_dotenv()
+        resolved_stub = _env_flag("REPLAYER_STUB_LLM") if stub_llm is None else stub_llm
+        resolved_dry_run = _env_flag("REPLAYER_DRY_RUN") if dry_run is None else dry_run
+        replay_path = os.environ.get("REPLAYER_REPLAY_PATH") or None
+        models = {step: StepModel.from_env(step) for step in LLM_STEPS}
+
+        # A provider with no client wired used to surface as NotImplementedError
+        # from inside the first model call, several steps into a run. Reject it
+        # here instead - but only when a real provider would actually be used.
+        if not (resolved_stub or resolved_dry_run or replay_path):
+            unsupported = sorted(
+                {
+                    binding.provider
+                    for binding in models.values()
+                    if binding.provider not in SUPPORTED_PROVIDERS
+                }
+            )
+            if unsupported:
+                raise ValueError(
+                    f"No model client is wired for provider(s) {unsupported}. "
+                    f"Supported: {list(SUPPORTED_PROVIDERS)}. Set REPLAYER_PROVIDER "
+                    "to a supported value, or set REPLAYER_STUB_LLM=1 to run "
+                    "without a provider."
+                )
+
         return cls(
             url=url,
             session=session,
-            stub_llm=_env_flag("REPLAYER_STUB_LLM") if stub_llm is None else stub_llm,
-            dry_run=_env_flag("REPLAYER_DRY_RUN") if dry_run is None else dry_run,
+            stub_llm=resolved_stub,
+            dry_run=resolved_dry_run,
             max_explore_steps=int(os.environ.get("REPLAYER_MAX_EXPLORE_STEPS", "8")),
             artifacts_dir=os.environ.get("REPLAYER_ARTIFACTS_DIR", "artifacts"),
             checkpoint_dir=os.environ.get("REPLAYER_CHECKPOINT_DIR", ".checkpoints"),
+            generated_tests_dir=os.environ.get(
+                "REPLAYER_GENERATED_TESTS_DIR", "e2e/generated"
+            ),
             record_path=os.environ.get("REPLAYER_RECORD_PATH") or None,
-            replay_path=os.environ.get("REPLAYER_REPLAY_PATH") or None,
-            models={step: StepModel.from_env(step) for step in LLM_STEPS},
+            replay_path=replay_path,
+            models=models,
         )
 
     def model_for(self, step: str) -> StepModel | None:
