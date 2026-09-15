@@ -99,6 +99,10 @@ def test_require_is_rejected() -> None:
     ]
 
 
+def test_dynamic_imports_are_rejected() -> None:
+    assert find_disallowed_imports("await import('fs');") == ["fs"]
+
+
 def test_a_disallowed_import_is_a_static_problem() -> None:
     """It must be caught before the file is written and executed."""
     source = (

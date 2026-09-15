@@ -46,6 +46,7 @@ def test_assertion_failures_are_classified_as_assertions(message: str) -> None:
     "message",
     [
         "locator.click: Error: strict mode violation: resolved to 2 elements",
+        "locator.click: Timeout 30000ms exceeded.\n=========== waiting for getByRole('button')",
         "Timeout 30000ms exceeded.\n=========== waiting for locator('button')",
         "Failed to resolve locator against the page",
     ],
@@ -102,6 +103,12 @@ def test_a_harness_error_is_a_failure_that_escalates() -> None:
     failures = classify_failures({"harness_error": "playwright exited 1"})
     assert [failure.kind for failure in failures] == [HARNESS]
     assert not failures[0].repairable
+
+
+def test_an_empty_failure_list_escalates_unknown() -> None:
+    report = {"stats": {"unexpected": 1}, "suites": [{"specs": [{"tests": [{"results": [{"status": "skipped"}]}]}]}]}
+    failures = classify_failures(report)
+    assert failures == []
 
 
 def test_passed_results_are_not_failures() -> None:
@@ -211,6 +218,24 @@ async def test_a_harness_error_stops_the_loop_and_escalates(
     assert state.escalations
     assert state.escalations[0].startswith(HARNESS)
     assert len(RECORDER.invocations) == 1
+
+
+async def test_no_per_test_failures_escalates_unknown(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def _run(state: RunState, config: WorkflowConfig) -> bool:
+        state.test_passed = False
+        state.test_report = {"stats": {"skipped": 2}}
+        return False
+
+    monkeypatch.setattr("replayer.runner.run_playwright", _run)
+    state = _state()
+
+    await run_generate(state, _config(tmp_path))
+
+    assert state.escalations
+    assert state.escalations[0].startswith(UNKNOWN)
+    assert state.generation_error
 
 
 async def test_a_locator_failure_is_still_repaired(

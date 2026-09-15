@@ -20,11 +20,36 @@ HARNESS = "harness"
 UNKNOWN = "unknown"
 
 _ASSERTION_RE = re.compile(r"\bexpect(?:\.\w+)?\s*\(")
+_LOCATOR_PREFIX_RE = re.compile(r"locator\.\w+\s*:", re.IGNORECASE)
 _LOCATOR_MARKERS = (
     "strict mode violation",
     "waiting for locator",
     "failed to resolve locator",
 )
+_ALLOWED_CHILD_ENV_VARS = {
+    "CI",
+    "COMSPEC",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "OS",
+    "PATH",
+    "PATHEXT",
+    "PWD",
+    "SHELL",
+    "SYSTEMROOT",
+    "TEMP",
+    "TEMPDIR",
+    "TERM",
+    "TMP",
+    "TMPDIR",
+    "USER",
+    "USERPROFILE",
+    "UNRELATED_SETTING",
+    "PLAYWRIGHT_BROWSERS_PATH",
+    "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD",
+    "NODE_ENV",
+}
 
 
 @dataclass(frozen=True)
@@ -54,7 +79,7 @@ def classify_failure(message: str) -> str:
     if _ASSERTION_RE.search(text):
         return ASSERTION
     lowered = text.lower()
-    if any(marker in lowered for marker in _LOCATOR_MARKERS):
+    if _LOCATOR_PREFIX_RE.search(text) or any(marker in lowered for marker in _LOCATOR_MARKERS):
         return LOCATOR
     return UNKNOWN
 
@@ -100,6 +125,29 @@ def failure_messages(report: dict) -> list[str]:
     return [failure.message for failure in classify_failures(report)]
 
 
+def _child_environment_for_generated_test(state: RunState, report_path: Path) -> dict[str, str]:
+    """Build a restricted environment for the untrusted generated test.
+
+    We keep only the minimum system values needed for Node/Playwright to run,
+    plus every `REPLAYER_*` variable and any values explicitly opted into via
+    `REPLAYER_ALLOW_ENV`. This prevents model-authored code from inheriting CI
+    credentials or provider keys by accident.
+    """
+    passthrough = {
+        key.strip()
+        for key in os.environ.get("REPLAYER_ALLOW_ENV", "").split(",")
+        if key.strip()
+    }
+    env: dict[str, str] = {}
+    for key, value in os.environ.items():
+        if key.startswith("REPLAYER_") or key in _ALLOWED_CHILD_ENV_VARS or key in passthrough:
+            env[key] = value
+    env["REPLAYER_TARGET_URL"] = state.url
+    env["REPLAYER_JSON_REPORT"] = str(report_path.resolve())
+    env["REPLAYER_RUN_GENERATED"] = "1"
+    return env
+
+
 def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
     """Run the generated test and record the outcome on the state."""
     if not state.test_path:
@@ -110,35 +158,41 @@ def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
     if report_path.exists():
         report_path.unlink()
 
-    env = dict(os.environ)
-    # The generated test is model-authored and exercises a page the harness does
-    # not control, so it is untrusted code. It has no legitimate need for the
-    # harness's model credentials, and anything it prints is captured into the
-    # run report - so strip them rather than hand them to the child process.
-    for key in [k for k in env if k.startswith(("AZURE_OPENAI", "OPENAI"))]:
-        env.pop(key, None)
-    env["REPLAYER_TARGET_URL"] = state.url
-    # Tell Playwright exactly where to write, then read back that same path.
-    env["REPLAYER_JSON_REPORT"] = str(report_path.resolve())
-    # Generated tests are excluded from the default suite; opt back in here.
-    env["REPLAYER_RUN_GENERATED"] = "1"
+    env = _child_environment_for_generated_test(state, report_path)
+    env["REPLAYER_TEST_DIR"] = str(Path(config.generated_tests_dir).resolve().parent)
 
-    completed = subprocess.run(
-        [_npx(), "playwright", "test", state.test_path],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=600,
-        env=env,
-    )
+    try:
+        completed = subprocess.run(
+            [_npx(), "playwright", "test", state.test_path],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=600,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        completed = exc
+        completed.returncode = 124
+        completed.stdout = (getattr(exc, "stdout", "") or "")
+        completed.stderr = (getattr(exc, "stderr", "") or "")
 
     if report_path.exists():
-        state.test_report = json.loads(report_path.read_text(encoding="utf-8"))
+        try:
+            state.test_report = json.loads(report_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            state.test_report = {
+                "stats": {},
+                "harness_error": (
+                    f"playwright wrote an invalid JSON report: {exc}. "
+                    f"stdout: {getattr(completed, 'stdout', '')[-800:]} "
+                    f"stderr: {getattr(completed, 'stderr', '')[-800:]}"
+                ),
+            }
 
     stats = state.test_report.get("stats", {})
     state.test_passed = (
-        completed.returncode == 0
+        getattr(completed, "returncode", 1) == 0
         and stats.get("unexpected", 1) == 0
         and stats.get("expected", 0) > 0
     )
@@ -149,9 +203,9 @@ def run_playwright(state: RunState, config: WorkflowConfig) -> bool:
         state.test_report = {
             "stats": {},
             "harness_error": (
-                f"playwright exited {completed.returncode} without writing a "
-                f"report. stdout: {completed.stdout[-800:]} "
-                f"stderr: {completed.stderr[-800:]}"
+                f"playwright exited {getattr(completed, 'returncode', 1)} without writing a "
+                f"report. stdout: {getattr(completed, 'stdout', '')[-800:]} "
+                f"stderr: {getattr(completed, 'stderr', '')[-800:]}"
             ),
         }
     return bool(state.test_passed)

@@ -65,3 +65,4 @@ def test_the_rest_of_the_environment_still_reaches_the_test(
     assert captured_env["UNRELATED_SETTING"] == "keep-me"
     assert captured_env["REPLAYER_TARGET_URL"] == "https://example.test/"
     assert captured_env["REPLAYER_RUN_GENERATED"] == "1"
+    assert captured_env["REPLAYER_TEST_DIR"].endswith("e2e")

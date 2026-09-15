@@ -23,6 +23,7 @@ MAX_ATTEMPTS = 5
 _TEST_STEP = re.compile(r"\btest\.step\s*\(")
 _CODE_FENCE = re.compile(r"^```[a-zA-Z]*\n|\n```$")
 _IMPORT_RE = re.compile(r"""^\s*import\s+[^'"]*['"]([^'"]+)['"]""", re.MULTILINE)
+_DYNAMIC_IMPORT_RE = re.compile(r"""\bimport\s*\(\s*['\"]([^'\"]+)['\"]\s*\)""")
 _REQUIRE_RE = re.compile(r"\brequire\s*\(")
 
 #: Modules the generated test is allowed to pull in. The emitted file is run by
@@ -98,6 +99,9 @@ def find_disallowed_imports(source: str) -> list[str]:
     disallowed = [
         module for module in _IMPORT_RE.findall(source) if module not in ALLOWED_MODULES
     ]
+    disallowed.extend(
+        module for module in _DYNAMIC_IMPORT_RE.findall(source) if module not in ALLOWED_MODULES
+    )
     if _REQUIRE_RE.search(source):
         disallowed.append("require()")
     return sorted(set(disallowed))
@@ -166,7 +170,7 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
     back to `generate` would introduce a branch in the graph, and the absence of
     branches is what makes the step order impossible for a model to influence.
     """
-    from replayer.runner import classify_failures, run_playwright
+    from replayer.runner import UNKNOWN, classify_failures, run_playwright
 
     catalog_expressions = [entry.expression for entry in state.catalog]
     expected_steps = len(state.spec_steps)
@@ -198,6 +202,16 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
                 return
 
             failures = classify_failures(state.test_report)
+            if not failures:
+                state.escalations = [
+                    f"{UNKNOWN}: Playwright reported a failure without any classified per-test result."
+                ]
+                state.generation_error = (
+                    "Generation stopped: the test failed without a recognized "
+                    "assertion, locator, or harness error."
+                )
+                return
+
             blocking = [failure for failure in failures if not failure.repairable]
             if blocking:
                 state.escalations = [
@@ -213,7 +227,7 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
             problems = [
                 "The test was executed and failed: " + failure.message
                 for failure in failures
-            ] or ["The test was executed and failed for an unknown reason."]
+            ]
 
         feedback = (
             "\nYour previous attempt is below. REPAIR it - keep everything that "
