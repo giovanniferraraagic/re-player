@@ -12,7 +12,9 @@ from pathlib import Path
 
 from replayer.specfile import parse_spec_table
 from replayer.steps.generate import (
+    _static_problems,
     count_test_steps,
+    find_disallowed_imports,
     find_locator_violations,
     normalise_locator,
     parse_test_source,
@@ -65,6 +67,53 @@ def test_normalise_locator_ignores_spacing() -> None:
     assert normalise_locator("page.getByRole('a', { b: 1 })") == (
         "page.getByRole('a',{b:1})"
     )
+
+
+# --------------------------------------------------------------------------- #
+# The generated file is executed, so its imports are a privilege boundary.
+# --------------------------------------------------------------------------- #
+
+
+def test_the_playwright_import_is_allowed() -> None:
+    source = "import { test, expect } from '@playwright/test';\n"
+    assert find_disallowed_imports(source) == []
+
+
+def test_other_imports_are_rejected() -> None:
+    """Page content reaches the prompt, so the reply is untrusted input."""
+    source = (
+        "import { test, expect } from '@playwright/test';\n"
+        "import { execSync } from 'child_process';\n"
+    )
+    assert find_disallowed_imports(source) == ["child_process"]
+
+
+def test_bare_and_default_imports_are_rejected() -> None:
+    assert find_disallowed_imports("import 'fs';\n") == ["fs"]
+    assert find_disallowed_imports("import fs from 'fs';\n") == ["fs"]
+
+
+def test_require_is_rejected() -> None:
+    assert find_disallowed_imports("const cp = require('child_process');") == [
+        "require()"
+    ]
+
+
+def test_dynamic_imports_are_rejected() -> None:
+    assert find_disallowed_imports("await import('fs');") == ["fs"]
+
+
+def test_a_disallowed_import_is_a_static_problem() -> None:
+    """It must be caught before the file is written and executed."""
+    source = (
+        "import { test, expect } from '@playwright/test';\n"
+        "import { execSync } from 'child_process';\n"
+        "test('x', async ({ page }) => {\n"
+        "  await test.step('a', async () => {});\n"
+        "});\n"
+    )
+    problems = _static_problems(source, CATALOG, 1)
+    assert any("@playwright/test" in problem for problem in problems)
 
 
 # --------------------------------------------------------------------------- #

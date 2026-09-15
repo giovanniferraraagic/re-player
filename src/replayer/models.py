@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from replayer.config import CODE_ONLY_STEPS, WorkflowConfig
+from replayer.config import CODE_ONLY_STEPS, SUPPORTED_PROVIDERS, WorkflowConfig
 from replayer.state import RunState
 
 
@@ -273,7 +273,7 @@ def client_for(config: WorkflowConfig) -> ModelClient:
     leaving a recording that only ever held the final exchange.
     """
     if config.client is not None:
-        return config.client  # type: ignore[return-value]
+        return config.client
 
     if config.replay_path:
         client: ModelClient = ReplayModelClient(config.replay_path)
@@ -282,12 +282,14 @@ def client_for(config: WorkflowConfig) -> ModelClient:
             base: ModelClient = StubModelClient()
         else:
             providers = {binding.provider for binding in config.models.values()}
-            if providers <= {"azure"}:
+            if providers <= set(SUPPORTED_PROVIDERS):
                 base = AzureOpenAIChatClient()
             else:
                 raise NotImplementedError(
                     f"No client wired for provider(s) {sorted(providers)}; "
-                    "set REPLAYER_PROVIDER=azure or REPLAYER_STUB_LLM=1"
+                    f"supported: {list(SUPPORTED_PROVIDERS)}. Set "
+                    "REPLAYER_PROVIDER, or REPLAYER_STUB_LLM=1 to run without "
+                    "a provider."
                 )
         client = (
             RecordingModelClient(base, config.record_path)

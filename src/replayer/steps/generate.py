@@ -22,6 +22,14 @@ MAX_ATTEMPTS = 5
 
 _TEST_STEP = re.compile(r"\btest\.step\s*\(")
 _CODE_FENCE = re.compile(r"^```[a-zA-Z]*\n|\n```$")
+_IMPORT_RE = re.compile(r"""^\s*import\s+[^'"]*['"]([^'"]+)['"]""", re.MULTILINE)
+_DYNAMIC_IMPORT_RE = re.compile(r"""\bimport\s*\(\s*['\"]([^'\"]+)['\"]\s*\)""")
+_REQUIRE_RE = re.compile(r"\brequire\s*\(")
+
+#: Modules the generated test is allowed to pull in. The emitted file is run by
+#: Node with the harness's environment, and page content reaches the prompt that
+#: produced it, so this list is a privilege boundary rather than a style rule.
+ALLOWED_MODULES = frozenset({"@playwright/test"})
 
 PROMPT_TEMPLATE = """Write a Playwright test in TypeScript for this specification.
 
@@ -80,6 +88,25 @@ def count_test_steps(source: str) -> int:
     return len(_TEST_STEP.findall(source))
 
 
+def find_disallowed_imports(source: str) -> list[str]:
+    """Modules the generated test pulls in that it has no business pulling in.
+
+    The generated file is executed, so an unconstrained import is arbitrary code
+    execution on the machine running the harness. Because page-derived text
+    reaches the prompt, the model's reply is treated as untrusted input and
+    checked, not trusted because we asked for a test.
+    """
+    disallowed = [
+        module for module in _IMPORT_RE.findall(source) if module not in ALLOWED_MODULES
+    ]
+    disallowed.extend(
+        module for module in _DYNAMIC_IMPORT_RE.findall(source) if module not in ALLOWED_MODULES
+    )
+    if _REQUIRE_RE.search(source):
+        disallowed.append("require()")
+    return sorted(set(disallowed))
+
+
 def _render_steps(state: RunState) -> str:
     return "\n".join(
         f"{step.index}. {step.action} -> expected: {step.expected}"
@@ -110,9 +137,13 @@ def _render_catalog(state: RunState) -> str:
     return "\n".join(lines)
 
 
-def write_test(state: RunState) -> Path:
-    """Persist the generated test next to the hand-written ones."""
-    directory = Path("e2e") / "generated"
+def write_test(state: RunState, config: WorkflowConfig) -> Path:
+    """Persist the generated test next to the hand-written ones.
+
+    The directory comes from configuration so that parallel and hermetic runs
+    can be isolated, the same way the catalog and the run report already are.
+    """
+    directory = Path(config.generated_tests_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{slugify(state.spec_title)}.spec.ts"
     path.write_text(state.test_source, encoding="utf-8")
@@ -127,13 +158,19 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
     wrong assertions: across repeated runs the generator sometimes produced a
     test that type-checked, used only catalog locators, and still failed. So the
     step verifies its own output by executing it, exactly as Playwright's own
-    generator agent does, and feeds any failure back for another attempt.
+    generator agent does, and feeds any *repairable* failure back for another
+    attempt.
+
+    Only locator failures are repairable. A failed assertion or a server error
+    escalates instead: retrying those pressures the model into an expectation
+    that accommodates the defect, which is how a real bug silently becomes a
+    green test.
 
     The retry lives *inside* this executor on purpose. Adding an edge from `run`
     back to `generate` would introduce a branch in the graph, and the absence of
     branches is what makes the step order impossible for a model to influence.
     """
-    from replayer.runner import failure_messages, run_playwright
+    from replayer.runner import UNKNOWN, classify_failures, run_playwright
 
     catalog_expressions = [entry.expression for entry in state.catalog]
     expected_steps = len(state.spec_steps)
@@ -158,15 +195,39 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
 
         if not problems:
             state.test_source = source
-            write_test(state)
+            write_test(state, config)
             if config.dry_run:
                 return
             if run_playwright(state, config):
                 return
+
+            failures = classify_failures(state.test_report)
+            if not failures:
+                state.escalations = [
+                    f"{UNKNOWN}: Playwright reported a failure without any classified per-test result."
+                ]
+                state.generation_error = (
+                    "Generation stopped: the test failed without a recognized "
+                    "assertion, locator, or harness error."
+                )
+                return
+
+            blocking = [failure for failure in failures if not failure.repairable]
+            if blocking:
+                state.escalations = [
+                    f"{failure.kind}: {failure.message}" for failure in blocking
+                ]
+                state.generation_error = (
+                    "Generation stopped: the test failed for a reason that must "
+                    "not be repaired automatically. "
+                    + " ".join(failure.message for failure in blocking)
+                )
+                return
+
             problems = [
-                "The test was executed and failed: " + message
-                for message in failure_messages(state.test_report)
-            ] or ["The test was executed and failed for an unknown reason."]
+                "The test was executed and failed: " + failure.message
+                for failure in failures
+            ]
 
         feedback = (
             "\nYour previous attempt is below. REPAIR it - keep everything that "
@@ -179,11 +240,20 @@ async def run_generate(state: RunState, config: WorkflowConfig) -> None:
             + "\n"
         )
 
-    # Keep the last attempt so the failure is inspectable rather than invisible.
+    # Keep the last attempt so the failure is inspectable rather than invisible,
+    # and let the workflow finish: a run that produced no report is the one case
+    # where a report would have been most useful.
     state.test_source = source
     if source.strip():
-        write_test(state)
-    raise RuntimeError(
+        write_test(state, config)
+    # The artifact on disk is this last, unaccepted attempt, which may never have
+    # been executed - so state an explicit verdict rather than leaving `run` to
+    # either re-execute a known-bad test or report a result belonging to an
+    # earlier attempt's source. The stale report is dropped for the same reason:
+    # it describes a different file from the one `test_path` now points at.
+    state.test_passed = False
+    state.test_report = {}
+    state.generation_error = (
         "Generator could not produce a passing test that respects the catalog "
         f"after {MAX_ATTEMPTS} attempts: {feedback.strip()}"
     )
@@ -197,6 +267,12 @@ def _static_problems(
         return ["The response contained no test source."]
 
     problems: list[str] = []
+    imports = find_disallowed_imports(source)
+    if imports:
+        problems.append(
+            "The test may only import from '@playwright/test'. Remove: "
+            + ", ".join(imports)
+        )
     violations = find_locator_violations(source, catalog_expressions)
     if violations:
         problems.append(

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: process.env.REPLAYER_TEST_DIR ?? './e2e',
   // Generated tests are per-run artifacts: excluded from the default suite so a
   // stale one cannot turn the project red, but the harness sets
   // REPLAYER_RUN_GENERATED when it executes one by path.

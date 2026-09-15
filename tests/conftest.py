@@ -28,6 +28,21 @@ requires_provider = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_model_recorder():
+    """Isolate the process-wide invocation ledger between tests.
+
+    ``RECORDER`` is a module global, so without this a test that asserts which
+    steps called a model would see invocations left behind by whatever ran
+    before it. Clearing per test removes that ordering dependence.
+    """
+    from replayer.models import RECORDER
+
+    RECORDER.clear()
+    yield
+    RECORDER.clear()
+
+
 @pytest.fixture(scope="session")
 def live_artifacts_dir(tmp_path_factory) -> Path:
     return tmp_path_factory.mktemp("live-artifacts")

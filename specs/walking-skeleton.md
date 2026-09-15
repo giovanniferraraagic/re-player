@@ -248,7 +248,9 @@ The end-to-end result was initially unreliable: the generated test type-checked,
 1. **The catalog had no notion of availability.** Elements such as the Toggle Todo checkbox and the All/Active/Completed filters exist only after a todo is created, and the generator asserted them on an empty page. Entries now carry `available_at_start` and are presented to the model in two groups.
 2. **Retries regenerated from scratch** instead of repairing. The previous source is now fed back for repair, and the attempt limit matches this spec's convergence bound of 5.
 
-The generator also verifies its own output by executing it, mirroring what Playwright's own generator agent does. That retry lives *inside* the `generate` executor deliberately: an edge from `run` back to `generate` would introduce a branch, and the absence of branches is what makes step order impossible for a model to influence.
+The generator also verifies its own output by executing it, mirroring what Playwright's own generator agent does. That retry lives *inside* the `generate` executor deliberately: an edge from `run` back to `generate` would introduce a branch, and the absence of branches is what makes step order impossible for a model to influence. Because `generate` has already executed the test, `run` reports that result instead of executing a second time; it runs the test only when generation handed one over unexecuted.
+
+Only **locator** failures are fed back for repair. A failed assertion, a server error or an unrecognised failure escalates instead: it stops the loop, is recorded on the run report under `escalations`, and is left for a human. Retrying those would pressure the model into an expectation that accommodates the defect, which is the mechanism `AGENTS.md` constraint 4 and the Tier 2 row of `docs/research/03-self-healing-and-regression-detection.md` exist to prevent. Exhausting the attempt limit no longer raises: the workflow finishes so that the failing run still produces a report.
 
 ### Deviations from the spec as written
 

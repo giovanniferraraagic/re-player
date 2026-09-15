@@ -104,6 +104,15 @@ class RunState:
     test_passed: bool | None = None
     test_report: dict[str, Any] = field(default_factory=dict)
 
+    #: Failures that must not be repaired automatically: assertion failures,
+    #: server errors and harness errors. Handing these back to the model is how
+    #: a real application defect becomes a green test, so they are recorded for
+    #: a human to triage instead.
+    escalations: list[str] = field(default_factory=list)
+    #: Set when generation ended without a passing test. The workflow still runs
+    #: to completion, because the failing run is the one worth a report.
+    generation_error: str | None = None
+
     usage: dict[str, StepUsage] = field(default_factory=dict)
     report_path: str | None = None
 
